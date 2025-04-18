@@ -1,0 +1,8 @@
+.btn {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  height: 100vh;
+  padding-top: 66vh;
+  color: gray;
+}

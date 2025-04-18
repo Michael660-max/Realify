@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+pillow
+torch
+transformers>=4.51.0
+controlnet-aux
+opencv-python
+python-multipart
+safetensors
+accelerate>=0.21.0
+diffusers>=0.24.0
+huggingface-hub>=0.21.0
+mediapipe

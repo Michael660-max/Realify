@@ -1,15 +1,10 @@
-import React, { useEffect, useReducer, useRef, useState } from "react";
+import React, { useEffect } from "react";
 
-function App() {
-  const canvasRef = useRef(null);
-  const contextRef = useRef(null);
-  const [isDrawing, setDrawing] = useState(false);
-
+function Canvas({ canvasRef, contextRef, setDrawing, isDrawing }) {
   useEffect(() => {
     const canvas = canvasRef.current;
     canvas.width = window.innerWidth * 2;
     canvas.height = window.innerHeight * 2;
-
     canvas.style.width = `${window.innerWidth}px`;
     canvas.style.height = `${window.innerHeight}px`;
 
@@ -19,7 +14,7 @@ function App() {
     context.strokeStyle = "black";
     context.lineWidth = 5;
     contextRef.current = context;
-  }, []);
+  }, [canvasRef, contextRef]);
 
   const startDrawing = ({ nativeEvent }) => {
     setDrawing(true);
@@ -52,4 +47,4 @@ function App() {
   );
 }
 
-export default App;
+export default Canvas;
