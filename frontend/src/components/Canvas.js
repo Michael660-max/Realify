@@ -9,10 +9,13 @@ function Canvas({ canvasRef, contextRef, setDrawing, isDrawing }) {
     canvas.style.height = `${window.innerHeight}px`;
 
     const context = canvas.getContext("2d");
+    context.fillStyle = "black";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
     context.scale(2, 2);
     context.lineCap = "round";
-    context.strokeStyle = "black";
-    context.lineWidth = 5;
+    context.strokeStyle = "white";
+    context.lineWidth = 8.5;
     contextRef.current = context;
   }, [canvasRef, contextRef]);
 

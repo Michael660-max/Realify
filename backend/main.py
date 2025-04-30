@@ -8,8 +8,9 @@ from io import BytesIO
 from diffusers import (
     StableDiffusionControlNetPipeline,
     ControlNetModel,
-    UniPCMultistepScheduler,
+    EulerAncestralDiscreteScheduler,
 )
+from diffusers.utils import load_image
 import torch
 from controlnet_aux import HEDdetector
 from contextlib import asynccontextmanager
@@ -32,19 +33,23 @@ async def lifespan(app: FastAPI):
     app.state.hed = HEDdetector.from_pretrained("lllyasviel/Annotators")
 
     controlnet = ControlNetModel.from_pretrained(
-        "lllyasviel/sd-controlnet-hed", torch_dtype=dtype
+        "lllyasviel/sd-controlnet-scribble", torch_dtype=dtype, local_files_only=True
     )
     pipe = StableDiffusionControlNetPipeline.from_pretrained(
         "runwayml/stable-diffusion-v1-5",
         controlnet=controlnet,
         torch_dtype=dtype,
+        local_files_only=True,
     )
-    pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
+    pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(pipe.scheduler.config)
     pipe = pipe.to(device)
     app.state.pipe = pipe
 
+    pipe.enable_attention_slicing()
+    pipe.enable_vae_slicing()
     if device == "cuda":
         pipe.enable_model_cpu_offload()
+        pipe.enable_xformers_memory_efficient_attention()
     yield
 
 
@@ -68,11 +73,33 @@ async def generate_image(request: Request, file: UploadFile = File(...)):
     hed = request.app.state.hed
     pipe = request.app.state.pipe
 
-    scribble = hed(image, scribble=True)
-    out = pipe("bag", scribble, num_inference_steps=10).images[0]
+    image = hed(image, scribble=True)
+
+    prompt = (
+        "photorealistic face portrait, masterpiece, 8K resolution, "
+        "follows input white-on-black line art exactly, "
+        "includes all drawn facial features and accessories (glasses, earrings, hats, etc.), "
+        "no additional features or accessories not present in sketch, "
+        "realistic skin pores, soft cinematic lighting, sharp details"
+    )
+
+    neg_prompt = (
+        "low-res, blurry, cartoon, deformed anatomy, "
+        "missing features, no hair, no eyes, no mouth, "
+        "bad lighting, artifacts"
+    )
+
+    out = pipe(
+        prompt=prompt,
+        negative_prompt=neg_prompt,
+        image=image,
+        num_inference_steps=17,
+        guidance_scale=8.0,
+        controlnet_conditioning_scale=1.2,
+    ).images[0]
 
     os.makedirs("images", exist_ok=True)
-    out_path = "images/transformed_2D_image.png"
+    out_path = "images/transformed_2D_image2.png"
     out.save(out_path)
 
     return JSONResponse(content={"url": f"/{out_path}"})
