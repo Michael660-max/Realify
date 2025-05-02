@@ -9,6 +9,7 @@ from diffusers import (
     StableDiffusionControlNetPipeline,
     ControlNetModel,
     EulerAncestralDiscreteScheduler,
+    DPMSolverMultistepScheduler,
 )
 from diffusers.utils import load_image
 import torch
@@ -77,29 +78,27 @@ async def generate_image(request: Request, file: UploadFile = File(...)):
 
     prompt = (
         "photorealistic face portrait, masterpiece, 8K resolution, "
-        "follows input white-on-black line art exactly, "
-        "includes all drawn facial features and accessories (glasses, earrings, hats, etc.), "
-        "no additional features or accessories not present in sketch, "
-        "realistic skin pores, soft cinematic lighting, sharp details"
+        "strict adherence to input line art reference (white-on-black), "
+        "only drawn facial features & accessories, no additional details, "
+        "realistic skin pores, soft cinematic lighting, sharp focus"
     )
 
     neg_prompt = (
-        "low-res, blurry, cartoon, deformed anatomy, "
-        "missing features, no hair, no eyes, no mouth, "
-        "bad lighting, artifacts"
+        "distorted, deformed anatomy, low-res, blurry, cartoon, missing features, "
+        "extra accessories, poor lighting, artifacts, image noise"
     )
 
     out = pipe(
         prompt=prompt,
         negative_prompt=neg_prompt,
         image=image,
-        num_inference_steps=17,
-        guidance_scale=8.0,
-        controlnet_conditioning_scale=1.2,
+        num_inference_steps=20,
+        guidance_scale=8.5,
+        controlnet_conditioning_scale=1.3,
     ).images[0]
 
     os.makedirs("images", exist_ok=True)
-    out_path = "images/transformed_2D_image2.png"
+    out_path = "images/transformed_2D_image1.png"
     out.save(out_path)
 
     return JSONResponse(content={"url": f"/{out_path}"})
