@@ -22,7 +22,7 @@ function App() {
       <button onClick={() => setFillMode((m) => !m)}>
         {fillMode ? "Draw" : "Fill"}
       </button>
-    </div>  
+    </div>
   );
 }
 
