@@ -16,7 +16,6 @@ from contextlib import asynccontextmanager
 import os
 import cv2
 import numpy as np
-from PIL import ImageEnhance
 
 
 @asynccontextmanager
@@ -91,7 +90,7 @@ async def generate_image(request: Request, file: UploadFile = File(...)):
             "natural eyes, nose, mouth, and ears",
             "soft even studio lighting, minimal shadows",
             "front-facing gaze, centered composition",
-            "sharp details, realistic skin pores",
+            "sharp details, realistic skin",
         ]
     )
     neg_prompt = ", ".join(
@@ -116,13 +115,8 @@ async def generate_image(request: Request, file: UploadFile = File(...)):
             controlnet_conditioning_scale=1.1,
         ).images[0]
 
-    # Smoothing + lower contrast
-    img = cv2.cvtColor(np.array(out), cv2.COLOR_RGB2BGR)
-    img = cv2.bilateralFilter(img, d=9, sigmaColor=75, sigmaSpace=75)
-    out_image = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-
     os.makedirs("images", exist_ok=True)
     out_path = "images/transformed_2D_image1.png"
-    out_image.save(out_path)
+    out.save(out_path)
 
     return JSONResponse(content={"url": f"/{out_path}"})
