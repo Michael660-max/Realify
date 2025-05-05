@@ -13,7 +13,7 @@ function UploadButton({ canvasRef }) {
       const file = new File([blob], "drawing.png", { type: "image/png" });
       formData.append("file", file);
       formData.append("prompt", prompt);
-      const response = await fetch("http://localhost:8000/upload", {
+      const response = await fetch("http://localhost:8000/generate_2d", {
         method: "POST",
         body: formData,
       });

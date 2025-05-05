@@ -14,8 +14,8 @@ import torch
 from controlnet_aux import HEDdetector
 from contextlib import asynccontextmanager
 import os
-import cv2
-import numpy as np
+from deca import DECA
+import numpy as np, os, torch
 
 
 @asynccontextmanager
@@ -30,6 +30,10 @@ async def lifespan(app: FastAPI):
     else:
         device = "cpu"
         dtype = torch.float32
+
+    # DECA
+    config = "vendor/deca/configs/deca_cfg.yaml"
+    app.state.deca = DECA(config, device=device)
 
     app.state.hed = HEDdetector.from_pretrained("lllyasviel/Annotators")
     scribble = ControlNetModel.from_pretrained(
@@ -69,7 +73,7 @@ app.add_middleware(
 )
 
 
-@app.post("/upload")
+@app.post("/generate_2d")
 async def generate_image(request: Request, file: UploadFile = File(...)):
     contents = await file.read()
     form = await request.form()
@@ -120,3 +124,32 @@ async def generate_image(request: Request, file: UploadFile = File(...)):
     out.save(out_path)
 
     return JSONResponse(content={"url": f"/{out_path}"})
+
+
+@app.post("/reconstruct_3d")
+async def generate_model(file: UploadFile = File(...)):
+    contents = await file.read()
+    image = Image.open(BytesIO(contents)).convert("RGB").resize((512, 512))
+    img_np = np.array(image).astype(np.float32) / 255.0
+
+    deca = app.state.deca
+    codedict = deca.encode(img_np)
+    opdict = deca.decode(codedict)
+
+    base = os.path.splitext(file.filename)[0]
+    obj_path = f"images/{base}.obj"
+    albedo_path = f"images/{base}_albedo.png"
+
+    deca.save_obj(obj_path, opdict)
+    albedo = (
+        (opdict["albedo"][0].cpu().numpy().transpose(1, 2, 0) * 255)
+        .clip(0, 255)
+        .astype(np.uint8)
+    )
+    Image.fromarray(albedo).save(albedo_path)
+    
+    return JSONResponse({
+        "obj": f"/images/{base}.obj",
+        "mtl": f"/images/{base}.mtl",
+        "albedo": f"/images/{base}_albedo.png"
+    })
