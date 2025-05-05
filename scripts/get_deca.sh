@@ -20,5 +20,5 @@ EOF
   echo "Installing DECA in editable mode..."
   python3 -m pip install -e "$VENDOR_DIR"
 else
-  echo "✅ DECA already present in $VENDOR_DIR"
+  echo "DECA already present in $VENDOR_DIR"
 fi
