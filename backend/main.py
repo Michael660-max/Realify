@@ -15,7 +15,7 @@ from controlnet_aux import HEDdetector
 from contextlib import asynccontextmanager
 import os
 from deca import DECA
-import numpy as np, os, torch
+import numpy as np
 
 
 @asynccontextmanager

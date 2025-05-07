@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from "react";
 import * as THREE from "three";
 import { MTLLoader, OBJLoader } from "three-stdlib";
 
-function MeshViewer(objUrl, mtlUrl, textureUrl) {
+function MeshViewer({objUrl, mtlUrl, textureUrl}) {
   const mountRef = useRef();
 
   useEffect(() => {
