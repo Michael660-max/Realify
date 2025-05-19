@@ -59,8 +59,9 @@ export default function MeshViewer({ meshUrl }) {
       if (renderer.domElement) container.removeChild(renderer.domElement);
       renderer.dispose();
       scene.clear();
+      controls.dispose();
     };
-  });
+  }, [meshUrl]);
 
   return (
     <div

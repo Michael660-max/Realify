@@ -19,8 +19,8 @@ function App() {
       method: "POST",
       body: fd,
     });
-    const { meshUrl: path } = await res.json();
-    setMeshUrl(`http://localhost:8000${path}`);
+    const { meshUrl } = await res.json();
+    setMeshUrl(`http://localhost:8000${meshUrl}`);
   };
 
   return (
