@@ -6,7 +6,7 @@ Endpoints:
   POST /reconstruct_3d → face image to 3D mesh
 
 Usage:
-  uvicorn depth_api:app --reload --host 0.0.0.0 --port 8000
+  uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 macOS Note:
   Open3D is not on PyPI for macOS. Install via Conda:
@@ -20,7 +20,7 @@ Requirements:
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Request
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from io import BytesIO
@@ -77,17 +77,24 @@ async def lifespan(app: FastAPI):
     app.state.pipe = pipe
 
     # MiDas
-    midas = create_model("midas_v21_small", pretrained=True).to(app.state.device).eval()
+    model_type = "DPT_Hybrid"
+    midas = (
+        torch.hub.load("intel-isl/MiDaS", model_type, pretrained=True)
+        .to(app.state.device)
+        .eval()
+    )
+    midas_transform = torch.hub.load("intel-isl/MiDaS", "transforms").dpt_transform
     app.state.midas = midas
+    app.state.midas_transform = midas_transform
 
     yield
 
 
 app = FastAPI(lifespan=lifespan)
-app.mount("/images", StaticFiles(directory="images"), name="images")
-
 tmp_dir = os.path.join(os.getcwd(), "tmp")
 os.makedirs(tmp_dir, exist_ok=True)
+
+app.mount("/images", StaticFiles(directory="images"), name="images")
 app.mount("/meshes", StaticFiles(directory=tmp_dir), name="meshes")
 
 app.add_middleware(
@@ -106,51 +113,51 @@ def estimate_depth(request: Request, img_path):
     """
     device = request.app.state.device
     model = request.app.state.midas
-    transform = transforms.Compose(
-        [
-            transforms.Resize(256),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ]
-    )
+    transform = request.app.state.midas_transform
+
+    # tf = transforms.Compose(
+    #     [
+    #         transforms.Resize(256),
+    #         transforms.ToTensor(),
+    #         transforms.Normalize(
+    #             mean=[0.485, 0.456, 0.406],
+    #             std=[0.229, 0.224, 0.225],
+    #         ),
+    #     ]
+    # )
+
     img = Image.open(img_path).convert("RGB")
-    img_t = transform(img).unsqueeze(0).to(device)
+    img_np = np.asarray(img)
+    input_batch = transform(img_np).to(device)
 
     with torch.no_grad():
-        depth = model.forward(img_t)
+        depth = model(input_batch)
+
+        # depth = (
+        #     torch.nn.functional.interpolate(
+        #         depth.unsqueeze(1),
+        #         size=img.shape[::-1],
+        #         mode="bicubic",
+        #         align_corners=False,
+        #     )
+        #     .squeeze()
+        #     .cpu()
+        #     .numpy()
+        # )
 
     depth = (
         torch.nn.functional.interpolate(
-            depth.unsqueeze(1), size=img.size[::-1], mode="bicubic", align_corners=False
+            depth.unsqueeze(1),
+            size=img_np.shape[:2],  # (H, W)
+            mode="bicubic",
+            align_corners=False,
         )
         .squeeze()
         .cpu()
         .numpy()
     )
+
     return depth
-
-
-def depth_to_pointcloud(depth):
-    """
-    Takes the depth map and creates a 3D cloud of points in space
-    (normalized_x, normalized_y, depth_value)
-    """
-    h, w = depth.shape
-    xs, ys = np.meshgrid(np.linspace(-1, 1, w), np.linspace(-1, 1, h))
-    pts = np.stack([xs, ys, depth], axis=-1).reshape(-1, 3)
-    pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(pts))
-    return pcd
-
-
-def poisson_reconstruct(pcd, depth=8):
-    """
-    Takes PCD and creates a mesh using KDTree with KNN
-    """
-    pcd.estimate_normals(
-        search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30)
-    )
-    mesh, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth)
-    return mesh
 
 
 # ---Endpoints---
