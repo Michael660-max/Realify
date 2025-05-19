@@ -1,7 +1,26 @@
-from fastapi import FastAPI, File, UploadFile
+"""
+FastAPI Backend: 2D->3D Reconstruction + Stable Diffusion 2D Pipeline
+
+Endpoints:
+  POST /generate_2d   → scribble to face image
+  POST /reconstruct_3d → face image to 3D mesh
+
+Usage:
+  uvicorn depth_api:app --reload --host 0.0.0.0 --port 8000
+
+macOS Note:
+  Open3D is not on PyPI for macOS. Install via Conda:
+    conda install -c open3d-admin -c conda-forge open3d
+
+Requirements:
+  pip install fastapi uvicorn python-multipart
+  pip install torch torchvision timm diffusers controlnet-aux numpy pillow
+"""
+
+from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from io import BytesIO
@@ -14,55 +33,62 @@ import torch
 from controlnet_aux import HEDdetector
 from contextlib import asynccontextmanager
 import os
-from deca import DECA
 import numpy as np
+import open3d as o3d
+from torchvision import transforms
+from timm.models import create_model
+import uuid
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # load the models once on startup
     if torch.cuda.is_available():
-        device = "cuda"
-        dtype = torch.float16
+        app.state.device = torch.device("cuda")
+        app.state.dtype = torch.float16
     elif torch.backends.mps.is_available():
-        device = "mps"
-        dtype = torch.float32
+        app.state.device = torch.device("mps")
+        app.state.dtype = torch.float32
     else:
-        device = "cpu"
-        dtype = torch.float32
+        app.state.device = torch.device("cpu")
+        app.state.dtype = torch.float32
 
-    # DECA
-    config = "vendor/deca/configs/deca_cfg.yaml"
-    app.state.deca = DECA(config, device=device)
-
+    # Stable Net + Diffusion
     app.state.hed = HEDdetector.from_pretrained("lllyasviel/Annotators")
     scribble = ControlNetModel.from_pretrained(
         "lllyasviel/sd-controlnet-scribble",
-        torch_dtype=dtype,
+        torch_dtype=app.state.dtype,
         local_files_only=True,
     )
 
     pipe = StableDiffusionControlNetPipeline.from_pretrained(
         "runwayml/stable-diffusion-v1-5",
         controlnet=scribble,
-        torch_dtype=dtype,
+        torch_dtype=app.state.dtype,
         local_files_only=True,
     )
     pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)
-    pipe = pipe.to(device)
-    app.state.pipe = pipe
-
-    # Optimize
+    pipe = pipe.to(app.state.device)
     pipe.enable_attention_slicing()
     pipe.enable_vae_slicing()
-    if device == "cuda":
+    if app.state.device.type == "cuda":
         pipe.enable_model_cpu_offload()
         pipe.enable_xformers_memory_efficient_attention()
+    app.state.pipe = pipe
+
+    # MiDas
+    midas = create_model("midas_v21_small", pretrained=True).to(app.state.device).eval()
+    app.state.midas = midas
+
     yield
 
 
 app = FastAPI(lifespan=lifespan)
 app.mount("/images", StaticFiles(directory="images"), name="images")
+
+tmp_dir = os.path.join(os.getcwd(), "tmp")
+os.makedirs(tmp_dir, exist_ok=True)
+app.mount("/meshes", StaticFiles(directory=tmp_dir), name="meshes")
 
 app.add_middleware(
     CORSMiddleware,
@@ -73,6 +99,61 @@ app.add_middleware(
 )
 
 
+# ---Utiliy functions---
+def estimate_depth(request: Request, img_path):
+    """
+    Generate a depth map of the image
+    """
+    device = request.app.state.device
+    model = request.app.state.midas
+    transform = transforms.Compose(
+        [
+            transforms.Resize(256),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
+    img = Image.open(img_path).convert("RGB")
+    img_t = transform(img).unsqueeze(0).to(device)
+
+    with torch.no_grad():
+        depth = model.forward(img_t)
+
+    depth = (
+        torch.nn.functional.interpolate(
+            depth.unsqueeze(1), size=img.size[::-1], mode="bicubic", align_corners=False
+        )
+        .squeeze()
+        .cpu()
+        .numpy()
+    )
+    return depth
+
+
+def depth_to_pointcloud(depth):
+    """
+    Takes the depth map and creates a 3D cloud of points in space
+    (normalized_x, normalized_y, depth_value)
+    """
+    h, w = depth.shape
+    xs, ys = np.meshgrid(np.linspace(-1, 1, w), np.linspace(-1, 1, h))
+    pts = np.stack([xs, ys, depth], axis=-1).reshape(-1, 3)
+    pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(pts))
+    return pcd
+
+
+def poisson_reconstruct(pcd, depth=8):
+    """
+    Takes PCD and creates a mesh using KDTree with KNN
+    """
+    pcd.estimate_normals(
+        search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30)
+    )
+    mesh, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth)
+    return mesh
+
+
+# ---Endpoints---
 @app.post("/generate_2d")
 async def generate_image(request: Request, file: UploadFile = File(...)):
     contents = await file.read()
@@ -110,7 +191,7 @@ async def generate_image(request: Request, file: UploadFile = File(...)):
     )
 
     with torch.no_grad():
-        out = pipe(
+        result = pipe(
             prompt=prompt,
             negative_prompt=neg_prompt,
             image=image,
@@ -120,36 +201,54 @@ async def generate_image(request: Request, file: UploadFile = File(...)):
         ).images[0]
 
     os.makedirs("images", exist_ok=True)
-    out_path = "images/transformed_2D_image1.png"
-    out.save(out_path)
+    out_path = os.path.join("images", "transformed_2D.png")
+    result.save(out_path)
 
-    return JSONResponse(content={"url": f"/{out_path}"})
+    return JSONResponse(content={"url": "/images/transformed_2D.png"})
 
 
 @app.post("/reconstruct_3d")
-async def generate_model(file: UploadFile = File(...)):
-    contents = await file.read()
-    image = Image.open(BytesIO(contents)).convert("RGB").resize((512, 512))
-    img_np = np.array(image).astype(np.float32) / 255.0
+async def generate_model(request: Request, file: UploadFile = File(...)):
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Invalid file type")
 
-    deca = app.state.deca
-    codedict = deca.encode(img_np)
-    opdict = deca.decode(codedict)
+    # Save upload
+    img_id = str(uuid.uuid4())
+    img_path = os.path.join(tmp_dir, f"{img_id}.png")
+    mesh_name = f"{img_id}.ply"
+    mesh_path = os.path.join(tmp_dir, mesh_name)
+    with open(img_path, "wb") as f:
+        f.write(await file.read())
 
-    base = os.path.splitext(file.filename)[0]
-    obj_path = f"images/{base}.obj"
-    albedo_path = f"images/{base}_albedo.png"
+    # Create pointcloud for depth and color
+    depth = estimate_depth(request, img_path)
+    img = Image.open(img_path).convert("RGB")
+    img_np = np.asarray(img, dtype=np.float32) / 255.0
+    H, W = depth.shape
+    xs, ys = np.meshgrid(np.linspace(-1, 1, W), np.linspace(-1, 1, H))
+    verts = np.stack([xs, ys, depth], axis=-1).reshape(-1, 3)
+    colors = img_np.reshape(-1, 3)
 
-    deca.save_obj(obj_path, opdict)
-    albedo = (
-        (opdict["albedo"][0].cpu().numpy().transpose(1, 2, 0) * 255)
-        .clip(0, 255)
-        .astype(np.uint8)
-    )
-    Image.fromarray(albedo).save(albedo_path)
-    
-    return JSONResponse({
-        "obj": f"/images/{base}.obj",
-        "mtl": f"/images/{base}.mtl",
-        "albedo": f"/images/{base}_albedo.png"
-    })
+    # Single array triangles from grid
+    faces = []
+    for i in range(H - 1):
+        for j in range(W - 1):
+            idx = i * W + j
+            faces.append([idx, idx + 1, idx + W])
+            faces.append([idx + 1, idx + W + 1, idx + W])
+
+    # Building the mesh
+    mesh = o3d.geometry.TriangleMesh()
+    mesh.vertices = o3d.utility.Vector3dVector(verts)
+    mesh.triangles = o3d.utility.Vector3iVector(faces)
+    mesh.vertex_colors = o3d.utility.Vector3dVector(colors)
+    mesh.compute_vertex_normals()
+    o3d.io.write_triangle_mesh(mesh_path, mesh)
+
+    return JSONResponse(content={"meshUrl": f"/meshes/{mesh_name}"})
+
+
+@app.on_event("shutdown")
+def cleanup():
+    for fname in os.listdir(tmp_dir):
+        os.remove(os.path.join(tmp_dir, fname))

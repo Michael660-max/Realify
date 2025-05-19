@@ -1,2 +1,4 @@
 /vendor/deca
 /node_modules
+/backend/.venv/*
+/backend/vendor/deca

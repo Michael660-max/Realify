@@ -2,14 +2,14 @@ import "./App.css";
 import React, { useRef, useState } from "react";
 import Canvas from "./components/Canvas";
 import UploadButton from "./components/UploadButton";
-import MeshViewer from "./components/MeshViewer";
+import MeshViewer from "./components/MeshViewer"
 
 function App() {
   const canvasRef = useRef(null);
   const contextRef = useRef(null);
   const [isDrawing, setDrawing] = useState(false);
   const [fillMode, setFillMode] = useState(false);
-  const [model, setModel] = useState(null);
+  const [meshUrl, setMeshUrl] = useState(null);
 
   const uploadAndReconstruct = async (file) => {
     const fd = new FormData();
@@ -19,12 +19,12 @@ function App() {
       method: "POST",
       body: fd,
     });
-    const data = await res.json();
-    setModel(data);
+    const { meshUrl: path } = await res.json();
+    setMeshUrl(`http://localhost:8000${path}`);
   };
 
   return (
-    <div>
+    <div style={{ width: "800px", height: "600px" }}>
       <Canvas
         canvasRef={canvasRef}
         contextRef={contextRef}
@@ -39,17 +39,11 @@ function App() {
 
       <input
         type="file"
-        accept="image/png"
+        accept="image/*"
         onChange={(e) => uploadAndReconstruct(e.target.files[0])}
       />
 
-      {model && (
-        <MeshViewer
-          objUrl={model.obj}
-          mtlUrl={model.mtl}
-          textureUrl={model.albedo}
-        />
-      )}
+      {meshUrl && <MeshViewer meshUrl={meshUrl}/>}
     </div>
   );
 }

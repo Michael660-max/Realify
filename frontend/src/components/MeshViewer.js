@@ -1,43 +1,71 @@
 import React, { useRef, useEffect } from "react";
 import * as THREE from "three";
-import { MTLLoader, OBJLoader } from "three-stdlib";
+import { PLYLoader } from "three/examples/jsm/loaders/PLYLoader.js";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
-function MeshViewer({objUrl, mtlUrl, textureUrl}) {
-  const mountRef = useRef();
+export default function MeshViewer({ meshUrl }) {
+  const containerRef = useRef(null);
 
   useEffect(() => {
+    const container = containerRef.current;
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+    scene.background = new THREE.Color(0xeeeeee);
+
+    const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
     camera.position.set(0, 0, 2);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(512, 512);
-    mountRef.current.appendChild(renderer.domElement);
+    renderer.setSize(width, height);
+    container.appendChild(renderer.domElement);
 
-    const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(1, 1, 2).normalize();
-    scene.add(light);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const dl = new THREE.DirectionalLight(0xffffff, 0.8);
+    dl.position.set(1, 1, 1);
+    scene.add(dl);
 
-    new MTLLoader().load(mtlUrl, (materials) => {
-      materials.preload();
-      new OBJLoader().setMaterials(materials).load(objUrl, (obj) => {
-        const tex = new THREE.TextureLoader().load(textureUrl);
-        obj.traverse((c) => {
-          if (c.isMesh) c.material.map = tex;
-        });
-        scene.add(obj);
-        renderer.render(scene, camera);
-      });
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    const loader = new PLYLoader();
+    let mesh;
+    loader.load(meshUrl, (geometry) => {
+      geometry.computeVertexNormals();
+      const material = new THREE.MeshStandardMaterial({ vertexColors: true });
+      mesh = new THREE.Mesh(geometry, material);
+      scene.add(mesh);
     });
 
-    return () => {
-      if (mountRef.current) {
-        mountRef.current.removeChild(renderer.domElement);
-      }
+    const onResize = () => {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
     };
-  }, [objUrl, mtlUrl, textureUrl]);
+    window.addEventListener("resize", onResize);
 
-  return <div ref={mountRef} />;
+    const animate = () => {
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    };
+    animate();
+
+    return () => {
+      window.removeEventListener("resize", onResize);
+      if (renderer.domElement) container.removeChild(renderer.domElement);
+      renderer.dispose();
+      scene.clear();
+    };
+  });
+
+  return (
+    <div
+      ref={containerRef}
+      style={{ width: "100%", height: "100%", position: "relative" }}
+    />
+  );
 }
-
-export default MeshViewer;
