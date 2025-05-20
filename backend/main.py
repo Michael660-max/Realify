@@ -224,6 +224,7 @@ async def generate_model(request: Request, file: UploadFile = File(...)):
     img_path = os.path.join(tmp_dir, f"{img_id}.png")
     mesh_name = f"{img_id}.ply"
     mesh_path = os.path.join(tmp_dir, mesh_name)
+
     with open(img_path, "wb") as f:
         f.write(await file.read())
 
@@ -232,6 +233,7 @@ async def generate_model(request: Request, file: UploadFile = File(...)):
     img = Image.open(img_path).convert("RGB")
     img_np = np.asarray(img, dtype=np.float32) / 255.0
     H, W = depth.shape
+
     xs, ys = np.meshgrid(np.linspace(-1, 1, W), np.linspace(-1, 1, H))
     verts = np.stack([xs, ys, depth], axis=-1).reshape(-1, 3)
     colors = img_np.reshape(-1, 3)
@@ -250,8 +252,13 @@ async def generate_model(request: Request, file: UploadFile = File(...)):
     mesh.triangles = o3d.utility.Vector3iVector(faces)
     mesh.vertex_colors = o3d.utility.Vector3dVector(colors)
     mesh.compute_vertex_normals()
-    o3d.io.write_triangle_mesh(mesh_path, mesh)
 
+    # Quadratic decimation (500k -> 30k triangles)
+    target_triangles = 30000
+    mesh = mesh.simplify_quadric_decimation(target_number_of_triangles=target_triangles)
+    mesh.compute_vertex_normals()
+
+    o3d.io.write_triangle_mesh(mesh_path, mesh)
     return JSONResponse(content={"meshUrl": f"/meshes/{mesh_name}"})
 
 
