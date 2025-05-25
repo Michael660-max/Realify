@@ -14,3 +14,5 @@ torchvision
 timm
 open3d
 numpy
+mediapipe
+scipy

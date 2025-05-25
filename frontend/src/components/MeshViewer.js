@@ -31,12 +31,25 @@ export default function MeshViewer({ meshUrl }) {
 
     const loader = new PLYLoader();
     let mesh;
-    loader.load(meshUrl, (geometry) => {
-      geometry.computeVertexNormals();
-      const material = new THREE.MeshStandardMaterial({ vertexColors: true });
-      mesh = new THREE.Mesh(geometry, material);
-      scene.add(mesh);
-    });
+    loader.load(
+      meshUrl,
+      (geometry) => {
+        geometry.center();
+        console.log("BBox", geometry.boundingBox);
+        geometry.computeVertexNormals();
+        const material = new THREE.MeshStandardMaterial({
+          vertexColors: true,
+          side: THREE.DoubleSide,
+        });
+        mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+        camera.position.set(0, 0, 3);
+        controls.target.set(0, 0, 0);
+        controls.update();
+      },
+      (xhr) => console.log(`Loaded ${xhr.loaded}/${xhr.total}`),
+      (err) => console.error("PLY load error: " + err)
+    );
 
     const onResize = () => {
       const w = container.clientWidth;
