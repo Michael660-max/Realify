@@ -16,12 +16,9 @@ from contextlib import asynccontextmanager
 import os
 import numpy as np
 import open3d as o3d
-from torchvision import transforms
-from timm.models import create_model
 import uuid
-import matplotlib.pyplot
 import mediapipe as mp
-from scipy.spatial import Delaunay
+from scipy.spatial import Delaunay, cKDTree
 
 
 @asynccontextmanager
@@ -87,58 +84,69 @@ app.add_middleware(
 )
 
 
-# ---Utiliy functions---
-def estimate_depth(request: Request, img_path):
+# --Utiliy Functions---
+def center_mesh(face_mesh):
     """
-    Generate a depth map of the image
+    Center the mesh at X=0.
     """
-    device = request.app.state.device
-    model = request.app.state.midas
-    transform = request.app.state.midas_transform
+    bbox = face_mesh.get_axis_aligned_bounding_box()
+    center = bbox.get_center()
+    face_mesh.translate([-center[0], 0.0, 0.0])
 
-    # tf = transforms.Compose(
-    #     [
-    #         transforms.Resize(256),
-    #         transforms.ToTensor(),
-    #         transforms.Normalize(
-    #             mean=[0.485, 0.456, 0.406],
-    #             std=[0.229, 0.224, 0.225],
-    #         ),
-    #     ]
-    # )
 
-    img = Image.open(img_path).convert("RGB")
-    img_np = np.asarray(img)
-    input_batch = transform(img_np).to(device)
+def complete_head(
+    face_mesh, depth: int = 8, n_points: int = 200_000, density_crop_pct: float = 0.01
+):
+    """
+    1) Mirror your full face mesh across X=0
+    2) Combine front + back + cylinder
+    3) Sample a colored point cloud
+    4) Poisson‐reconstruct into a watertight head
+    5) Crop the lowest `density_crop_pct`% densities to remove artifacts
+    """
+    # Get original face mesh
+    face_mesh.compute_vertex_normals()
+    verts = np.asarray(face_mesh.vertices)
+    faces = np.asarray(face_mesh.triangles)
 
-    with torch.no_grad():
-        depth = model(input_batch)
+    # 1) Mirror across x=0
+    verts_mirror = verts.copy()
+    verts_mirror[:, 0] *= -1
 
-        # depth = (
-        #     torch.nn.functional.interpolate(
-        #         depth.unsqueeze(1),
-        #         size=img.shape[::-1],
-        #         mode="bicubic",
-        #         align_corners=False,
-        #     )
-        #     .squeeze()
-        #     .cpu()
-        #     .numpy()
-        # )
-
-    depth = (
-        torch.nn.functional.interpolate(
-            depth.unsqueeze(1),
-            size=img_np.shape[:2],  # (H, W)
-            mode="bicubic",
-            align_corners=False,
-        )
-        .squeeze()
-        .cpu()
-        .numpy()
+    mirror = o3d.geometry.TriangleMesh(
+        o3d.utility.Vector3dVector(verts_mirror),
+        o3d.utility.Vector3iVector(faces),
     )
+    mirror.vertex_colors = face_mesh.vertex_colors
+    mirror.compute_vertex_normals()
 
-    return depth
+    # 2) Combine back and front with cylinder
+    r = np.max(np.linalg.norm(verts, axis=1))
+    cyl = o3d.geometry.TriangleMesh.create_cylinder(radius=r * 1.05, height=r * 2)
+    cyl.translate([0, 0, r])
+    cyl.paint_uniform_color([0.1, 0.1, 0.1])
+    cyl.compute_vertex_normals()
+    combined = face_mesh + mirror + cyl
+
+    # 3) Sample a dense point cloud
+    pcd = combined.sample_points_poisson_disk(number_of_points=n_points, init_factor=5)
+    tree = cKDTree(np.asarray(combined.vertices))
+    _, idxs = tree.query(np.asarray(pcd.points))
+    pcd.colors = o3d.utility.Vector3dVector(np.asarray(combined.vertex_colors)[idxs])
+
+    # 4) Poisson reconstruction
+    mesh_full, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+        pcd, depth=depth
+    )
+    mesh_full.compute_vertex_normals()
+
+    # 5) Crop lowest densities
+    dens = np.asarray(densities)
+    thresh = np.percentile(dens, density_crop_pct)
+    keep_idx = np.where(dens > thresh)[0]
+    mesh_full = mesh_full.select_by_index(keep_idx)
+
+    return mesh_full
 
 
 # ---Endpoints---
@@ -213,7 +221,7 @@ async def generate_model(request: Request, file: UploadFile = File(...)):
     lm = results.multi_face_landmarks[0].landmark  # list of 468 landmarks
 
     # Build and normalize verts
-    verts = np.array(
+    original_verts = np.array(
         [[(p.x - 0.5) * 2.0, -(p.y - 0.5) * 2.0, p.z] for p in lm], dtype=np.float32
     )
 
@@ -232,21 +240,10 @@ async def generate_model(request: Request, file: UploadFile = File(...)):
 
     # Building the mesh
     mesh = o3d.geometry.TriangleMesh()
-    mesh.vertices = o3d.utility.Vector3dVector(verts)
+    mesh.vertices = o3d.utility.Vector3dVector(original_verts)
     mesh.triangles = o3d.utility.Vector3iVector(faces)
     mesh.vertex_colors = o3d.utility.Vector3dVector(colors)
     mesh.compute_vertex_normals()
-
-    # Quadric decimation (500k -> 30k triangles)
-    # print(
-    #     f"Mesh stats before decimation: verts={len(mesh.vertices)}, faces={len(mesh.triangles)}, has_colors={mesh.has_vertex_colors()}"
-    # )
-    # target_triangles = 100000
-    # mesh = mesh.simplify_quadric_decimation(target_number_of_triangles=target_triangles)
-    # mesh.compute_vertex_normals()
-    # print(
-    #     f"Mesh stats after decimation: verts={len(mesh.vertices)}, faces={len(mesh.triangles)}, has_colors={mesh.has_vertex_colors()}"
-    # )
 
     # Save the ply
     img_id = str(uuid.uuid4())
@@ -259,6 +256,15 @@ async def generate_model(request: Request, file: UploadFile = File(...)):
         write_vertex_colors=True,
         write_vertex_normals=True,
     )
+
+    o3d.io.write_triangle_mesh(
+        mesh_path,
+        mesh,
+        write_ascii=True,
+        write_vertex_colors=True,
+        write_vertex_normals=True,
+    )
+
     return JSONResponse(content={"meshUrl": f"/meshes/{mesh_name}"})
 
 
