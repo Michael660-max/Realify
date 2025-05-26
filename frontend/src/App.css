@@ -1,0 +1,35 @@
+.container {
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 75px;
+    margin-bottom: 75px;
+}
+
+.canvas-wrap {
+    position: relative;
+}
+
+.box {
+    background-color: #EEEEEE;
+}
+
+
+.btn-backdrop {
+    position: absolute;
+    background-color: #EEEEEE;
+    top: 12px;
+    left: 12px;
+    width: 5%;
+    height: 5%;
+    border-radius: 9px;
+    border-width: 0px;
+}
+
+.btn-backdrop img {
+    display: block;
+    width: 100%;
+    height: auto;
+    transform: scaleX(-1)
+}

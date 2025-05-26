@@ -1,18 +1,30 @@
 import React, { useEffect } from "react";
 
-function Canvas({ canvasRef, contextRef, setDrawing, isDrawing, fillMode }) {
+function Canvas({ canvasRef, contextRef, setDrawing, isDrawing, fillMode, drawMode }) {
+
   useEffect(() => {
     const canvas = canvasRef.current;
-    canvas.width = window.innerWidth * 2;
-    canvas.height = window.innerHeight * 2;
-    canvas.style.width = `${window.innerWidth}px`;
-    canvas.style.height = `${window.innerHeight}px`;
+    const scale = window.devicePixelRatio || 1;
+    const cssW = 620;
+    const cssH = 620;
+
+    canvas.width = Math.floor(cssW * scale);
+    canvas.height = Math.floor(cssH * scale);
+
+    const box = document.querySelector(".box");
+    box.style.width = `${cssW}px`;
+    box.style.height = `${cssH}px`;
+    canvas.style.width = `${cssW}px`;
+    canvas.style.height = `${cssH}px`;
+
+    box.style.borderRadius = "15px";
+    canvas.style.borderRadius = "15px";
 
     const context = canvas.getContext("2d");
-    context.fillStyle = "black";
+    context.fillStyle = "#2D2D2D";
     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    context.scale(2, 2);
+    context.scale(scale, scale);
     context.lineCap = "round";
     context.strokeStyle = "white";
     context.lineWidth = 12;
@@ -21,7 +33,7 @@ function Canvas({ canvasRef, contextRef, setDrawing, isDrawing, fillMode }) {
 
   // Stack based flood fill alg
   const fill = (x, y) => {
-    if (!contextRef.current) return
+    if (!contextRef.current) return;
     const canvas = canvasRef.current;
     const context = contextRef.current;
     const { width, height } = canvas;
@@ -56,6 +68,8 @@ function Canvas({ canvasRef, contextRef, setDrawing, isDrawing, fillMode }) {
   };
 
   const startDrawing = ({ nativeEvent }) => {
+    if (!drawMode) return
+
     const { offsetX, offsetY } = nativeEvent;
     if (fillMode) {
       fill(offsetX * 2, offsetY * 2);
@@ -82,9 +96,9 @@ function Canvas({ canvasRef, contextRef, setDrawing, isDrawing, fillMode }) {
 
   return (
     <canvas
-      onMouseDown={startDrawing}
-      onMouseUp={stopDrawing}
-      onMouseMove={draw}
+      onMouseDown={drawMode ? startDrawing : undefined}
+      onMouseUp={drawMode ? stopDrawing : undefined}
+      onMouseMove={drawMode ? draw : undefined}
       ref={canvasRef}
     />
   );
