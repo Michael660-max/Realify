@@ -29,9 +29,10 @@ function UploadButton({ canvasRef }) {
         placeholder="american woman, bangs"
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
+        className="btn-backdrop-middle"
       ></input>
 
-      <button onClick={uploadDrawing}>Generate 2D</button>
+      <button className="btn-backdrop-middle-right" onClick={uploadDrawing}>Generate 2D</button>
     </div>
   );
 }

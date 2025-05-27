@@ -38,19 +38,19 @@ function App() {
             drawMode={drawMode}
           />
           <button
-            className="btn-backdrop"
+            className="btn-backdrop-left"
             onClick={() => {
               toggleDraw((prev) => !prev);
             }}
           >
             <img src="/icons/pencil.png" alt="Draw" />
           </button>
+          <UploadButton canvasRef={canvasRef} />
         </div>
 
         <div className="box" />
       </div>
 
-      <UploadButton canvasRef={canvasRef} />
       <button onClick={() => setFillMode((m) => !m)}>
         {fillMode ? "Draw" : "Fill"}
       </button>
