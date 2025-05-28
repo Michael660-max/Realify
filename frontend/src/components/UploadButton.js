@@ -1,40 +1,38 @@
-import React, { useState } from "react";
+import React from "react";
 
-function UploadButton({ canvasRef }) {
-  const [prompt, setPrompt] = useState("");
+export default function UploadButton({ canvasRef, currStage, onDone }) {
+  const uploadDrawing = () => {
+    return new Promise((resolve, reject) => {
+      canvasRef.current.toBlob(async (blob) => {
+        if (!blob) return reject("Export Failed");
+        const formData = new FormData();
+        const file = new File([blob], "drawing.png", { type: "image/png" });
+        formData.append("file", file);
+        formData.append("prompt", "");
 
-  const uploadDrawing = async () => {
-    const canvas = canvasRef.current;
+        const response = await fetch("http://localhost:8000/generate_2d", {
+          method: "POST",
+          body: formData,
+        });
 
-    // Sending image and prompt to backend
-    canvas.toBlob(async (blob) => {
-      if (!blob) return console.error("Canvas export failed");
-      const formData = new FormData();
-      const file = new File([blob], "drawing.png", { type: "image/png" });
-      formData.append("file", file);
-      formData.append("prompt", prompt);
-      const response = await fetch("http://localhost:8000/generate_2d", {
-        method: "POST",
-        body: formData,
-      });
-      const result = await response.json();
-      console.log(result);
-    }, "image/png");
+        const { url } = await response.json();
+        resolve(url);
+      }, "image/png");
+    });
   };
 
-  return (
-    <div>
-      <input
-        type="text"
-        placeholder="american woman, bangs"
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        className="btn-backdrop-middle"
-      ></input>
+  const handleClick = async () => {
+    try {
+      const url = await uploadDrawing();
+      onDone(url);
+    } catch (err) {
+      console.error("Upload fail " + err);
+    }
+  };
 
-      <button className="btn-backdrop-middle-right" onClick={uploadDrawing}>Generate 2D</button>
-    </div>
-  );
+  return currStage === "idle" ? (
+    <button className="btn-backdrop-middle" onClick={handleClick}>
+      Realify
+    </button>
+  ) : null;
 }
-
-export default UploadButton;

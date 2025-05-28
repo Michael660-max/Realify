@@ -3,9 +3,31 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 75px;
-    margin-bottom: 75px;
+    gap: 70px;
+    margin-top: -40px;
 }
+
+button {
+    cursor: pointer;
+    /* Setup animations */
+    transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease,
+        background 0.15s ease;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+    background: #fff;
+}
+
+button:active {
+    transform: translateY(0) scale(0.97);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
 
 .canvas-wrap {
     position: relative;
@@ -13,19 +35,54 @@
 
 .box {
     background-color: #EEEEEE;
+    width: 620px;
+    height: 620px;
+    border-radius: 15px;
 }
 
+/* Pencil */
 .btn-backdrop-left {
     position: absolute;
+    display: block;
     background-color: #EEEEEE;
     top: 12px;
     left: 12px;
-    width: 5%;
-    height: 5%;
+    width: 6.5%;
+    height: 6.5%;
     border-radius: 9px;
     border-width: 0px;
 }
 
+.btn-backdrop-left img {
+    display: block;
+    width: 100%;
+    height: auto;
+    transform: scaleX(-1)
+}
+
+
+/* Fill */
+.btn-backdrop-left-bottom {
+    position: absolute;
+    display: block;
+    background-color: #EEEEEE;
+    top: 62px;
+    left: 12px;
+    width: 6.5%;
+    height: 6.5%;
+    border-radius: 9px;
+    border-width: 0px;
+}
+
+/* Image of fill */
+.btn-backdrop-left-bottom img {
+    display: block;
+    width: 100%;
+    height: auto;
+    transform: scale(1.13)
+}
+
+/* Backdrop of left box zoom out */
 .btn-backdrop-right {
     position: absolute;
     background-color: #EEEEEE;
@@ -37,32 +94,52 @@
     border-width: 0px;
 }
 
+/* Backdrop of middle realify */
 .btn-backdrop-middle {
     position: absolute;
+    display: block;
     background-color: #EEEEEE;
-    top: 80%;
-    left: 25%;
-    width: 20%;
+    top: 86%;
+    left: 42%;
+    width: 15%;
     height: 5%;
     border-radius: 9px;
     border-width: 0px;
+    font-size: 20px;
+    font-family: sans-serif;
+    font-weight: bold;
 }
 
-.btn-backdrop-middle-right {
+
+/* Second box */
+.box-2 {
+    position: relative;
+    background-color: #EEEEEE;
+}
+
+.box-2 img {
     position: absolute;
-    background-color: #EEEEEE;
-    top: 80%;
-    left: 46%;
-    width: 20%;
-    height: 5%;
-    border-radius: 9px;
-    border-width: 0px;
-}
-
-
-.btn-backdrop-left img {
     display: block;
     width: 100%;
     height: auto;
-    transform: scaleX(-1)
+    border-radius: 15px;
+}
+
+/* REALIFY */
+.btn-backdrop-middle-second {
+    position: absolute;
+    display: block;
+    background-color: #EEEEEE;
+    top: 83%;
+    left: 43%;
+    width: 15.5%;
+    height: 7%;
+    border-radius: 9px;
+    border-width: 0px;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.mesh-container canvas {
+    border-radius: inherit;
 }

@@ -10,15 +10,10 @@ function Canvas({ canvasRef, contextRef, setDrawing, isDrawing, fillMode, drawMo
 
     canvas.width = Math.floor(cssW * scale);
     canvas.height = Math.floor(cssH * scale);
-
-    const box = document.querySelector(".box");
-    box.style.width = `${cssW}px`;
-    box.style.height = `${cssH}px`;
     canvas.style.width = `${cssW}px`;
     canvas.style.height = `${cssH}px`;
-
-    box.style.borderRadius = "15px";
     canvas.style.borderRadius = "15px";
+    // canvas.style.marginBottom = "25px"
 
     const context = canvas.getContext("2d");
     context.fillStyle = "#2D2D2D";
@@ -27,7 +22,7 @@ function Canvas({ canvasRef, contextRef, setDrawing, isDrawing, fillMode, drawMo
     context.scale(scale, scale);
     context.lineCap = "round";
     context.strokeStyle = "white";
-    context.lineWidth = 12;
+    context.lineWidth = 10;
     contextRef.current = context;
   }, [canvasRef, contextRef]);
 

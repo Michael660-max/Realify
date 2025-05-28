@@ -7,6 +7,7 @@ export default function MeshViewer({ meshUrl }) {
   const containerRef = useRef(null);
 
   useEffect(() => {
+    if (!meshUrl) return
     const container = containerRef.current;
     const width = container.clientWidth;
     const height = container.clientHeight;
@@ -35,7 +36,6 @@ export default function MeshViewer({ meshUrl }) {
       meshUrl,
       (geometry) => {
         geometry.center();
-        console.log("BBox", geometry.boundingBox);
         geometry.computeVertexNormals();
         const material = new THREE.MeshStandardMaterial({
           vertexColors: true,

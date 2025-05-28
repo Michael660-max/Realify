@@ -191,7 +191,7 @@ async def generate_image(request: Request, file: UploadFile = File(...)):
             prompt=prompt,
             negative_prompt=neg_prompt,
             image=image,
-            num_inference_steps=20,
+            num_inference_steps=5,
             guidance_scale=8.5,
             controlnet_conditioning_scale=1.1,
         ).images[0]
