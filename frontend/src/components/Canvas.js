@@ -63,7 +63,7 @@ function Canvas({ canvasRef, contextRef, setDrawing, isDrawing, fillMode, drawMo
   };
 
   const startDrawing = ({ nativeEvent }) => {
-    if (!drawMode) return
+    if (!drawMode && !fillMode) return
 
     const { offsetX, offsetY } = nativeEvent;
     if (fillMode) {
@@ -91,9 +91,9 @@ function Canvas({ canvasRef, contextRef, setDrawing, isDrawing, fillMode, drawMo
 
   return (
     <canvas
-      onMouseDown={drawMode ? startDrawing : undefined}
-      onMouseUp={drawMode ? stopDrawing : undefined}
-      onMouseMove={drawMode ? draw : undefined}
+      onMouseDown={drawMode || fillMode ? startDrawing : undefined}
+      onMouseUp={drawMode || fillMode ? stopDrawing : undefined}
+      onMouseMove={drawMode || fillMode ? draw : undefined}
       ref={canvasRef}
     />
   );

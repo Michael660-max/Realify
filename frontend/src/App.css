@@ -7,6 +7,44 @@
     margin-top: -40px;
 }
 
+
+/* BOT */
+.bot-container {
+    position: fixed;
+    bottom: 0;
+    left: 15%;
+}
+.bot-container img {
+    transform: scale(115%)
+}
+.bot-speech {
+  display: inline-block;
+  position: relative;
+  max-width: 80%;
+  padding: 12px 16px;
+  background: #e4e4e4;
+  border-radius: 12px;
+  word-wrap: break-word;
+  left: 28.5%;
+  top: -50px;
+}
+.bot-speech::after {
+    content: "";
+    position: absolute;
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%) scaleX(-1);
+    transform-origin: center;
+    border-width: 12px 0px 12px 12px;
+    border-style: solid;
+    border-color: transparent transparent transparent #e4e4e4
+}
+#msg {
+    font-family: sans-serif;
+}
+
+
+/* BUTTON */
 button {
     cursor: pointer;
     /* Setup animations */
@@ -16,25 +54,36 @@ button {
         background 0.15s ease;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
-
 button:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 8px rgba(0,0,0,0.15);
     background: #fff;
 }
-
 button:active {
     transform: translateY(0) scale(0.97);
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
-
+.btn-backdrop-left.toggled {
+  background: #d0f0fd;
+  transform: translateY(1px);
+}
+.btn-backdrop-left.toggled img {
+  filter: hue-rotate(180deg);
+}
+.btn-backdrop-left-bottom.toggled {
+  background: #d0f0fd;
+  transform: translateY(1px);
+}
+.btn-backdrop-left-bottom.toggled img {
+  filter: hue-rotate(180deg);
+}
 
 .canvas-wrap {
     position: relative;
 }
 
 .box {
-    background-color: #EEEEEE;
+    background-color: #e4e4e4;
     width: 620px;
     height: 620px;
     border-radius: 15px;
@@ -44,7 +93,7 @@ button:active {
 .btn-backdrop-left {
     position: absolute;
     display: block;
-    background-color: #EEEEEE;
+    background-color: #e4e4e4;
     top: 12px;
     left: 12px;
     width: 6.5%;
@@ -52,7 +101,6 @@ button:active {
     border-radius: 9px;
     border-width: 0px;
 }
-
 .btn-backdrop-left img {
     display: block;
     width: 100%;
@@ -65,7 +113,7 @@ button:active {
 .btn-backdrop-left-bottom {
     position: absolute;
     display: block;
-    background-color: #EEEEEE;
+    background-color: #e4e4e4;
     top: 62px;
     left: 12px;
     width: 6.5%;
@@ -73,8 +121,6 @@ button:active {
     border-radius: 9px;
     border-width: 0px;
 }
-
-/* Image of fill */
 .btn-backdrop-left-bottom img {
     display: block;
     width: 100%;
@@ -85,7 +131,7 @@ button:active {
 /* Backdrop of left box zoom out */
 .btn-backdrop-right {
     position: absolute;
-    background-color: #EEEEEE;
+    background-color: #e4e4e4;
     top: 12px;
     right: 12px;
     width: 5%;
@@ -94,11 +140,12 @@ button:active {
     border-width: 0px;
 }
 
+
 /* Backdrop of middle realify */
 .btn-backdrop-middle {
     position: absolute;
     display: block;
-    background-color: #EEEEEE;
+    background-color: #e4e4e4;
     top: 86%;
     left: 42%;
     width: 15%;
@@ -114,9 +161,8 @@ button:active {
 /* Second box */
 .box-2 {
     position: relative;
-    background-color: #EEEEEE;
+    background-color: #e4e4e4;
 }
-
 .box-2 img {
     position: absolute;
     display: block;
@@ -125,11 +171,12 @@ button:active {
     border-radius: 15px;
 }
 
+
 /* REALIFY */
 .btn-backdrop-middle-second {
     position: absolute;
     display: block;
-    background-color: #EEEEEE;
+    background-color: #e4e4e4;
     top: 83%;
     left: 43%;
     width: 15.5%;
@@ -139,7 +186,6 @@ button:active {
     font-size: 20px;
     font-weight: bold;
 }
-
 .mesh-container canvas {
     border-radius: inherit;
 }

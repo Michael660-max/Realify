@@ -23,6 +23,8 @@ from scipy.spatial import Delaunay, cKDTree
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    app.state.ready = False
+
     # load the models once on startup
     if torch.cuda.is_available():
         app.state.device = torch.device("cuda")
@@ -65,6 +67,7 @@ async def lifespan(app: FastAPI):
         min_detection_confidence=0.5,
     )
 
+    app.state.ready = True
     yield
 
 
@@ -150,6 +153,11 @@ def complete_head(
 
 
 # ---Endpoints---
+@app.get("ready")
+async def ready():
+    return {"ready": app.state.ready}
+
+
 @app.post("/generate_2d")
 async def generate_image(request: Request, file: UploadFile = File(...)):
     contents = await file.read()

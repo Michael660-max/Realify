@@ -1,5 +1,5 @@
 import "./App.css";
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import Canvas from "./components/Canvas";
 import UploadButton from "./components/UploadButton";
 import MeshViewer from "./components/MeshViewer";
@@ -13,6 +13,28 @@ function App() {
   const [drawMode, toggleDraw] = useState(false);
   const [stage, setStage] = useState("idle");
   const [imgUrl, setImgUrl] = useState("");
+  const [msg, setMsg] = useState("");
+  const messages = [
+    "Go ahead, draw a face in the black box! I’ll try my best to realify it—bet you can’t stump me 👀🎨",
+    "Ready to see some pure magic? Tap ✨Realify✨ and watch your sketch come alive in vivid 2D! 🧙‍♂️",
+    "Feeling extremely bold today? Hit 🌀REALIFY🌀 and watch your drawing leap into immersive 3D space! 🌐",
+    "Want to try again? Simply erase or draw a new face and tap Realify to restart the fun! 🔄✏️",
+  ];
+  const [fullText, setFullText] = useState(messages[0]);
+
+  useEffect(() => {
+    setMsg("");
+    const chars = Array.from(fullText);
+    let i = 0;
+    const id = setInterval(() => {
+      if (i < chars.length) {
+        setMsg(fullText.substring(0, ++i));
+      } else {
+        clearInterval(id);
+      }
+    }, 50);
+    return () => clearInterval(id);
+  }, [fullText]);
 
   const uploadAndReconstruct = async (url) => {
     const response = await fetch(url);
@@ -29,6 +51,7 @@ function App() {
     const { meshUrl } = await res.json();
     setMeshUrl(`http://localhost:8000${meshUrl}`);
     setStage("3d_ready");
+    setFullText(messages[3]);
   };
 
   return (
@@ -46,15 +69,16 @@ function App() {
             drawMode={drawMode}
           />
           <button
-            className="btn-backdrop-left"
+            className={`btn-backdrop-left ${drawMode ? "toggled": ""}`}
             onClick={() => {
               toggleDraw((prev) => !prev);
+              setFullText(messages[1]);
             }}
           >
             <img src="/icons/pencil.png" alt="Draw" />
           </button>
           <button
-            className="btn-backdrop-left-bottom"
+            className={`btn-backdrop-left-bottom ${fillMode ? "toggled": ""}`}
             onClick={() => setFillMode((m) => !m)}
           >
             <img src="/icons/fill.png" alt="Draw" />
@@ -65,6 +89,7 @@ function App() {
             onDone={(url) => {
               setImgUrl(`http://localhost:8000${url}?t=${Date.now()}`);
               setStage("2d_done");
+              setFullText(messages[2]);
             }}
           />
           {stage === "2d_done" && (
@@ -88,6 +113,15 @@ function App() {
             <MeshViewer className="mesh-container" meshUrl={meshUrl} />
           </div>
         )}
+      </div>
+
+      {/*---- BOT ----*/}
+      <div className="bot-speech">
+        <span>{msg}</span>
+      </div>
+
+      <div className="bot-container">
+        <img src="icons/robot.png" alt="Robot Guide"></img>
       </div>
     </div>
   );
