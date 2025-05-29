@@ -18,7 +18,7 @@ function App() {
     "Go ahead, draw a face in the black box! I’ll try my best to realify it—bet you can’t stump me 👀🎨",
     "Ready to see some pure magic? Tap ✨Realify✨ and watch your sketch come alive in vivid 2D! 🧙‍♂️",
     "Feeling extremely bold today? Hit 🌀REALIFY🌀 and watch your drawing leap into immersive 3D space! 🌐",
-    "Want to try again? Simply erase or draw a new face and tap Realify to restart the fun! 🔄✏️",
+    "Want to try again? Simply erase or draw a new face and tap realify to restart the fun! 🔄✏️",
   ];
   const [fullText, setFullText] = useState(messages[0]);
 
@@ -69,7 +69,7 @@ function App() {
             drawMode={drawMode}
           />
           <button
-            className={`btn-backdrop-left ${drawMode ? "toggled": ""}`}
+            className={`btn-backdrop-left ${drawMode ? "toggled" : ""}`}
             onClick={() => {
               toggleDraw((prev) => !prev);
               setFullText(messages[1]);
@@ -78,7 +78,7 @@ function App() {
             <img src="/icons/pencil.png" alt="Draw" />
           </button>
           <button
-            className={`btn-backdrop-left-bottom ${fillMode ? "toggled": ""}`}
+            className={`btn-backdrop-left-bottom ${fillMode ? "toggled" : ""}`}
             onClick={() => setFillMode((m) => !m)}
           >
             <img src="/icons/fill.png" alt="Draw" />
@@ -117,7 +117,7 @@ function App() {
 
       {/*---- BOT ----*/}
       <div className="bot-speech">
-        <span>{msg}</span>
+        <span id="msg">{msg}</span>
       </div>
 
       <div className="bot-container">

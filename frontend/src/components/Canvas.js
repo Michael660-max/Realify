@@ -1,7 +1,13 @@
 import React, { useEffect } from "react";
 
-function Canvas({ canvasRef, contextRef, setDrawing, isDrawing, fillMode, drawMode }) {
-
+function Canvas({
+  canvasRef,
+  contextRef,
+  setDrawing,
+  isDrawing,
+  fillMode,
+  drawMode,
+}) {
   useEffect(() => {
     const canvas = canvasRef.current;
     const scale = window.devicePixelRatio || 1;
@@ -16,15 +22,29 @@ function Canvas({ canvasRef, contextRef, setDrawing, isDrawing, fillMode, drawMo
     // canvas.style.marginBottom = "25px"
 
     const context = canvas.getContext("2d");
-    context.fillStyle = "#2D2D2D";
+    context.fillStyle = "white";
     context.fillRect(0, 0, canvas.width, canvas.height);
 
     context.scale(scale, scale);
     context.lineCap = "round";
-    context.strokeStyle = "white";
+    context.strokeStyle = "black";
     context.lineWidth = 10;
     contextRef.current = context;
   }, [canvasRef, contextRef]);
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    const context = contextRef.current;
+    if (!context) return;
+
+    context.resetTransform();
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = "white";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    const scale = window.devicePixelRatio || 1;
+    context.scale(scale, scale);
+  };
 
   // Stack based flood fill alg
   const fill = (x, y) => {
@@ -38,7 +58,7 @@ function Canvas({ canvasRef, contextRef, setDrawing, isDrawing, fillMode, drawMo
     const targetIdx = (x + width * y) * 4;
     const targetColour = data.slice(targetIdx, targetIdx + 4);
 
-    const fillColour = [255, 255, 255, 255];
+    const fillColour = [0, 0, 0, 255];
     if (targetColour.every((v, i) => v === fillColour[i])) return;
 
     const stack = [[x, y]];
@@ -63,7 +83,7 @@ function Canvas({ canvasRef, contextRef, setDrawing, isDrawing, fillMode, drawMo
   };
 
   const startDrawing = ({ nativeEvent }) => {
-    if (!drawMode && !fillMode) return
+    if (!drawMode && !fillMode) return;
 
     const { offsetX, offsetY } = nativeEvent;
     if (fillMode) {
@@ -90,12 +110,17 @@ function Canvas({ canvasRef, contextRef, setDrawing, isDrawing, fillMode, drawMo
   };
 
   return (
-    <canvas
-      onMouseDown={drawMode || fillMode ? startDrawing : undefined}
-      onMouseUp={drawMode || fillMode ? stopDrawing : undefined}
-      onMouseMove={drawMode || fillMode ? draw : undefined}
-      ref={canvasRef}
-    />
+    <div>
+      <canvas
+        onMouseDown={drawMode || fillMode ? startDrawing : undefined}
+        onMouseUp={drawMode || fillMode ? stopDrawing : undefined}
+        onMouseMove={drawMode || fillMode ? draw : undefined}
+        ref={canvasRef}
+      />
+      <button onClick={clearCanvas} className={"btn-backdrop-right"}>
+        <img src="/icons/clear.png" alt="Clear" />
+      </button>
+    </div>
   );
 }
 

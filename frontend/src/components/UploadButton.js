@@ -1,22 +1,31 @@
-import React from "react";
+import React, { useState } from "react";
 
 export default function UploadButton({ canvasRef, currStage, onDone }) {
+  const [loading, setLoading] = useState(false);
+
   const uploadDrawing = () => {
+    setLoading(true);
     return new Promise((resolve, reject) => {
       canvasRef.current.toBlob(async (blob) => {
         if (!blob) return reject("Export Failed");
-        const formData = new FormData();
-        const file = new File([blob], "drawing.png", { type: "image/png" });
-        formData.append("file", file);
-        formData.append("prompt", "");
 
-        const response = await fetch("http://localhost:8000/generate_2d", {
-          method: "POST",
-          body: formData,
-        });
+        try {
+          const formData = new FormData();
+          const file = new File([blob], "drawing.png", { type: "image/png" });
+          formData.append("file", file);
+          formData.append("prompt", "");
 
-        const { url } = await response.json();
-        resolve(url);
+          const response = await fetch("http://localhost:8000/generate_2d", {
+            method: "POST",
+            body: formData,
+          });
+
+          const { url } = await response.json();
+          resolve(url);
+          setLoading(false);
+        } catch (err) {
+          reject(err);
+        }
       }, "image/png");
     });
   };
@@ -31,8 +40,12 @@ export default function UploadButton({ canvasRef, currStage, onDone }) {
   };
 
   return currStage === "idle" ? (
-    <button className="btn-backdrop-middle" onClick={handleClick}>
-      Realify
+    <button
+      disabled={loading}
+      className="btn-backdrop-middle"
+      onClick={handleClick}
+    >
+      {loading ? "loading" : "realify"}
     </button>
   ) : null;
 }

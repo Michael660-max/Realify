@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from PIL import Image
+from PIL import Image, ImageOps
 from io import BytesIO
 from diffusers import (
     StableDiffusionControlNetPipeline,
@@ -23,8 +23,6 @@ from scipy.spatial import Delaunay, cKDTree
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.ready = False
-
     # load the models once on startup
     if torch.cuda.is_available():
         app.state.device = torch.device("cuda")
@@ -48,6 +46,8 @@ async def lifespan(app: FastAPI):
         "runwayml/stable-diffusion-v1-5",
         controlnet=scribble,
         torch_dtype=app.state.dtype,
+        low_cpu_mem_usage=True,
+        device_map="balanced",
         local_files_only=True,
     )
     pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)
@@ -64,10 +64,8 @@ async def lifespan(app: FastAPI):
         static_image_mode=True,
         max_num_faces=1,
         refine_landmarks=True,
-        min_detection_confidence=0.5,
+        min_detection_confidence=0.8,
     )
-
-    app.state.ready = True
     yield
 
 
@@ -153,11 +151,6 @@ def complete_head(
 
 
 # ---Endpoints---
-@app.get("ready")
-async def ready():
-    return {"ready": app.state.ready}
-
-
 @app.post("/generate_2d")
 async def generate_image(request: Request, file: UploadFile = File(...)):
     contents = await file.read()
@@ -165,6 +158,7 @@ async def generate_image(request: Request, file: UploadFile = File(...)):
     user_prompt = form.get("prompt")
 
     scribble_net = Image.open(BytesIO(contents)).convert("RGB").resize((512, 512))
+    scribble_net = ImageOps.invert(scribble_net)
     hed = request.app.state.hed
     pipe = request.app.state.pipe
 
@@ -199,7 +193,7 @@ async def generate_image(request: Request, file: UploadFile = File(...)):
             prompt=prompt,
             negative_prompt=neg_prompt,
             image=image,
-            num_inference_steps=5,
+            num_inference_steps=10,
             guidance_scale=8.5,
             controlnet_conditioning_scale=1.1,
         ).images[0]
