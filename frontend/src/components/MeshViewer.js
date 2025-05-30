@@ -75,11 +75,15 @@ export default function MeshViewer({ meshUrl }) {
       scene.traverse((obj) => {
         if (obj.isMesh) {
           obj.geometry.dispose();
-        }
-        if (Array.isArray(obj.material)) {
-          obj.material.forEach((m) => m.dispose());
-        } else {
-          obj.material.dispose();
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach((m) => {
+              if (m.map) m.map.dispose();
+              m.dispose();
+            });
+          } else {
+            if (obj.material.map) obj.material.map.dispose();
+            obj.material.dispose();
+          }
         }
       });
 

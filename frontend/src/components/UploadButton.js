@@ -39,7 +39,7 @@ export default function UploadButton({ canvasRef, currStage, onDone }) {
     }
   };
 
-  return currStage === "idle" ? (
+  return currStage === "idle" || currStage === "3d_ready" ? (
     <button
       disabled={loading}
       className="btn-backdrop-middle"
