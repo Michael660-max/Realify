@@ -16,7 +16,7 @@ function App() {
   const [msg, setMsg] = useState("");
   const messages = [
     "Go ahead, draw a face in the black box! I’ll try my best to realify it—bet you can’t stump me 👀🎨",
-    "Ready to see some pure magic? Tap ✨Realify✨ and watch your sketch come alive in vivid 2D! 🧙‍♂️",
+    "Ready to see some pure magic? Tap ✨realify✨ and watch your sketch come alive in vivid 2D! 🧙‍♂️",
     "Feeling extremely bold today? Hit 🌀REALIFY🌀 and watch your drawing leap into immersive 3D space! 🌐",
     "Want to try again? Simply erase or draw a new face and tap realify to restart the fun! 🔄✏️",
   ];
@@ -92,7 +92,7 @@ function App() {
               setFullText(messages[2]);
             }}
           />
-          {stage === "2d_done" && (
+          {(stage === "2d_done" || stage === "3d_ready") && (
             <button
               className="btn-backdrop-middle-second"
               onClick={(e) => uploadAndReconstruct(imgUrl)}

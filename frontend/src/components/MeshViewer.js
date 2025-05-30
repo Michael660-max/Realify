@@ -7,13 +7,13 @@ export default function MeshViewer({ meshUrl }) {
   const containerRef = useRef(null);
 
   useEffect(() => {
-    if (!meshUrl) return
+    if (!meshUrl) return;
     const container = containerRef.current;
     const width = container.clientWidth;
     const height = container.clientHeight;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xeeeeee);
+    scene.background = new THREE.Color(0xffffff);
 
     const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
     camera.position.set(0, 0, 2);
@@ -60,19 +60,35 @@ export default function MeshViewer({ meshUrl }) {
     };
     window.addEventListener("resize", onResize);
 
+    let frameId;
     const animate = () => {
       controls.update();
       renderer.render(scene, camera);
-      requestAnimationFrame(animate);
+      frameId = requestAnimationFrame(animate);
     };
     animate();
 
     return () => {
       window.removeEventListener("resize", onResize);
-      if (renderer.domElement) container.removeChild(renderer.domElement);
+      cancelAnimationFrame(frameId);
+
+      scene.traverse((obj) => {
+        if (obj.isMesh) {
+          obj.geometry.dispose();
+        }
+        if (Array.isArray(obj.material)) {
+          obj.material.forEach((m) => m.dispose());
+        } else {
+          obj.material.dispose();
+        }
+      });
+
       renderer.dispose();
-      scene.clear();
       controls.dispose();
+
+      if (renderer.domElement && container.contains(renderer.domElement)) {
+        container.removeChild(renderer.domElement);
+      }
     };
   }, [meshUrl]);
 

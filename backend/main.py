@@ -19,6 +19,7 @@ import open3d as o3d
 import uuid
 import mediapipe as mp
 from scipy.spatial import Delaunay, cKDTree
+import shutil
 
 
 @asynccontextmanager
@@ -47,7 +48,6 @@ async def lifespan(app: FastAPI):
         controlnet=scribble,
         torch_dtype=app.state.dtype,
         low_cpu_mem_usage=True,
-        device_map="balanced",
         local_files_only=True,
     )
     pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config)
@@ -151,39 +151,49 @@ def complete_head(
 
 
 # ---Endpoints---
+@app.on_event("startup")
+def clear_temp_on_startup():
+    if os.path.isdir(tmp_dir):
+        shutil.rmtree(tmp_dir)
+    os.makedirs(tmp_dir, exist_ok=True)
+
+
 @app.post("/generate_2d")
 async def generate_image(request: Request, file: UploadFile = File(...)):
     contents = await file.read()
-    form = await request.form()
-    user_prompt = form.get("prompt")
 
-    scribble_net = Image.open(BytesIO(contents)).convert("RGB").resize((512, 512))
-    scribble_net = ImageOps.invert(scribble_net)
+    scribble_net = (
+        Image.open(BytesIO(contents))
+        .convert("L")
+        .resize((512, 512), resample=Image.NEAREST)
+    )
     hed = request.app.state.hed
     pipe = request.app.state.pipe
-
     image = hed(scribble_net, scribble=True)
 
     prompt = ", ".join(
         [
-            user_prompt,
-            "photorealistic face portrait",
-            "masterpiece, 8k resolution",
+            "photorealistic studio human face portrait, tight headshot, white backdrop, color photograph",
             "faithful interpretation of input line art",
-            "natural eyes, nose, mouth, and ears",
-            "soft even studio lighting, minimal shadows",
-            "front-facing gaze, centered composition",
-            "sharp details, realistic skin",
+            "shot on 50mm lens at f/1.8, shallow depth of field",
+            "even softbox lighting, minimal shadows",
+            "accurate facial proportions, coherent anatomy",
+            "highly detailed skin texture, natural color tones",
+            "centered gaze, subtle expression",
+            "masterpiece, 8k resolution",
         ]
     )
+
     neg_prompt = ", ".join(
         [
             "blurry",
-            "low-res",
+            "low resolution",
             "cartoon",
             "deformed anatomy",
-            "missing features",
-            "artifacts",
+            "multiple faces",
+            "artifact",
+            "oversaturated",
+            "weird distortions",
             "poor lighting",
         ]
     )
@@ -193,8 +203,8 @@ async def generate_image(request: Request, file: UploadFile = File(...)):
             prompt=prompt,
             negative_prompt=neg_prompt,
             image=image,
-            num_inference_steps=10,
-            guidance_scale=8.5,
+            num_inference_steps=25,
+            guidance_scale=8.0,
             controlnet_conditioning_scale=1.1,
         ).images[0]
 

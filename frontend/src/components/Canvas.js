@@ -28,7 +28,7 @@ function Canvas({
     context.scale(scale, scale);
     context.lineCap = "round";
     context.strokeStyle = "black";
-    context.lineWidth = 10;
+    context.lineWidth = 11;
     contextRef.current = context;
   }, [canvasRef, contextRef]);
 
