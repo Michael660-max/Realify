@@ -5,12 +5,7 @@ Transform your roughest scribbles to realistic face potraits, and turn those int
 
 ## Demo Video
 
-
-<video src="./assets/realify.mp4" controls muted loop style="max-width:100%; height:auto;">
-  Your browser does not support the video tag.
-</video>
-
----
+https://github.com/user-attachments/assets/23916501-df8a-43fc-8484-706a3fc0679b
 
 ## Realify UI
 
