@@ -1,10 +1,7 @@
 ![Logo](./assets/logo.png)
 
-# Realify
-
 Transform your roughest scribbles to realistic face potraits, and turn those into an interactive 3d model.
 
----
 
 ## Demo Video
 
