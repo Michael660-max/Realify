@@ -1,5 +1,4 @@
-![Logo](./assets/logo.png)
-
+# REALIFY
 Transform your roughest scribbles to realistic face potraits, and turn those into an interactive 3d model.
 
 
@@ -20,7 +19,7 @@ https://github.com/user-attachments/assets/23916501-df8a-43fc-8484-706a3fc0679b
 ![Vibe Draw 3D World](./assets/realify-3d.jpg)
 
 ### Other Examples
-![Examples](./assets/example.jpg)
+![Examples](./assets/example.jpeg)
 
 
 ---
